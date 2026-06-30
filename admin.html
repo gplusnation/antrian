@@ -81,112 +81,190 @@
 
 <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbxieAdG034Iqnv0KGl3Ac4x9N6qwTQdN_H2bUOpdQEj4urNH2Zy05l-NiMKqGC-BHtF/exec';
-    let queueData = [];
-    
-    async function loadQueue() {
-      try {
-        const response = await fetch(API_URL + '?action=getQueue');
-        const result = await response.json();
-        if (result.success) {
-          queueData = result.data;
-          renderTable();
-          updateStats();
-        }
-      } catch (error) { console.error('Error loading queue:', error); }
-    }
-    
-    function renderTable() {
-      const tbody = document.getElementById('tableBody');
-      if (queueData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="no-data">Belum ada antrian hari ini</td></tr>';
-        return;
-      }
-      tbody.innerHTML = queueData.map(item => {
-        let actions = '';
-        if (item.status === 'menunggu') {
-          actions = <button class="btn-action btn-panggil" onclick="panggil(${item.rowIndex})">▶️ Panggil</button><button class="btn-action btn-skip" onclick="skip(${item.rowIndex})">⏭️ Skip</button>;
-        } else if (item.status === 'ditangani') {
-          actions = <button class="btn-action btn-selesai" onclick="selesai(${item.rowIndex})">✅ Selesai</button><button class="btn-action btn-recall" onclick="recall(${item.rowIndex})">🔁 Panggil Ulang</button>;
-        } else if (item.status === 'selesai') {
-          actions = <button class="btn-action btn-recall" onclick="recall(${item.rowIndex})">🔁 Panggil Ulang</button>;
-        }
-        return <tr><td><strong>${item.noAntrian}</strong></td><td>${item.nama}</td><td>${item.usia}</td><td>${item.alamat}</td><td>${item.ortu}</td><td><span class="status-badge status-${item.status}">${item.status.toUpperCase()}</span></td><td>${actions}</td></tr>;
-      }).join('');
-    }
-    
-    function updateStats() {
-      const menunggu = queueData.filter(i => i.status === 'menunggu').length;
-      const ditangani = queueData.filter(i => i.status === 'ditangani').length;
-      const selesai = queueData.filter(i => i.status === 'selesai').length;
-      document.getElementById('countMenunggu').textContent = menunggu;
-      document.getElementById('countDitangani').textContent = ditangani;
-      document.getElementById('countSelesai').textContent = selesai;
-    }
-    
-    async function panggil(rowIndex) {
-      const ditangani = queueData.filter(i => i.status === 'ditangani').length;
-      if (ditangani >= 3) {
-        alert('Maksimal 3 antrian yang sedang ditangani. Selesaikan salah satu terlebih dahulu.');
-        return;
-      }
-      await updateStatus(rowIndex, 'ditangani');
-    }
-    
-    async function selesai(rowIndex) { await updateStatus(rowIndex, 'selesai'); }
-    
-    async function skip(rowIndex) {
-      if (confirm('Tandai antrian ini sebagai selesai (skip)?')) { await updateStatus(rowIndex, 'selesai'); }
-    }
-    
-    async function recall(rowIndex) {
-      await updateStatus(rowIndex, 'menunggu');
-      setTimeout(() => { updateStatus(rowIndex, 'ditangani'); }, 500);
-    }
-    
-    async function updateStatus(rowIndex, status) {
-      try {
-        await fetch(API_URL, {
-          method: 'POST',
-          mode: 'cors',
-          headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({ action: 'updateStatus', rowIndex: rowIndex, status: status })
-        });
-        loadQueue();
-      } catch (error) {
-        console.error('Error updating status:', error);
-        alert('Terjadi kesalahan. Silakan coba lagi.');
-      }
-    }
-    
-    async function saveRunningText() {
-      const text = document.getElementById('runningTextInput').value;
-      if (!text.trim()) { alert('Running text tidak boleh kosong'); return; }
-      try {
-        await fetch(API_URL, {
-          method: 'POST',
-          mode: 'cors',
-          headers: { 'Content-Type': 'text/plain' },
+let queueData = [];
 
-body: JSON.stringify({ action: 'setRunningText', text: text })
-        });
-        alert('Running text berhasil disimpan!');
-      } catch (error) {
-        console.error('Error saving running text:', error);
-        alert('Terjadi kesalahan. Silakan coba lagi.');
-      }
+async function loadQueue() {
+  try {
+    console.log('Loading queue...');
+    const response = await fetch(API_URL + '?action=getQueue', {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache'
+    });
+    
+    console.log('Response status:', response.status);
+    const text = await response.text();
+    console.log('Response text:', text);
+    
+    const result = JSON.parse(text);
+    console.log('Parsed result:', result);
+    
+    if (result.success) {
+      queueData = result.data || [];
+      console.log('Queue loaded:', queueData.length, 'items');
+      renderTable();
+      updateStats();
+    } else {
+      console.error('API error:', result.error);
+    }
+  } catch (error) {
+    console.error('Error loading queue:', error);
+    document.getElementById('tableBody').innerHTML = 
+      '<tr><td colspan="7" class="no-data">Error loading data: ' + error.message + '</td></tr>';
+  }
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  if (queueData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="no-data">Belum ada antrian hari ini</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = queueData.map(item => {
+    let actions = '';
+    if (item.status === 'menunggu') {
+      actions = `<button class="btn-action btn-panggil" onclick="panggil(${item.rowIndex})">▶️ Panggil</button>
+                 <button class="btn-action btn-skip" onclick="skip(${item.rowIndex})">⏭️ Skip</button>`;
+    } else if (item.status === 'ditangani') {
+      actions = `<button class="btn-action btn-selesai" onclick="selesai(${item.rowIndex})">✅ Selesai</button>
+                 <button class="btn-action btn-recall" onclick="recall(${item.rowIndex})">🔁 Panggil Ulang</button>`;
+    } else if (item.status === 'selesai') {
+      actions = `<button class="btn-action btn-recall" onclick="recall(${item.rowIndex})">🔁 Panggil Ulang</button>`;
     }
     
-    async function loadConfig() {
-      try {
-        const response = await fetch(API_URL + '?action=getConfig');
-        const result = await response.json();
-        if (result.success) { document.getElementById('runningTextInput').value = result.data.runningText || ''; }
-      } catch (error) { console.error('Error loading config:', error); }
-    }
+    return `<tr>
+      <td><strong>${item.noAntrian}</strong></td>
+      <td>${item.nama}</td>
+      <td>${item.usia}</td>
+      <td>${item.alamat}</td>
+      <td>${item.ortu}</td>
+      <td><span class="status-badge status-${item.status}">${item.status.toUpperCase()}</span></td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateStats() {
+  const menunggu = queueData.filter(i => i.status === 'menunggu').length;
+  const ditangani = queueData.filter(i => i.status === 'ditangani').length;
+  const selesai = queueData.filter(i => i.status === 'selesai').length;
+  document.getElementById('countMenunggu').textContent = menunggu;
+  document.getElementById('countDitangani').textContent = ditangani;
+  document.getElementById('countSelesai').textContent = selesai;
+}
+
+async function panggil(rowIndex) {
+  const ditangani = queueData.filter(i => i.status === 'ditangani').length;
+  if (ditangani >= 3) {
+    alert('Maksimal 3 antrian yang sedang ditangani. Selesaikan salah satu terlebih dahulu.');
+    return;
+  }
+  await updateStatus(rowIndex, 'ditangani');
+}
+
+async function selesai(rowIndex) { 
+  await updateStatus(rowIndex, 'selesai'); 
+}
+
+async function skip(rowIndex) {
+  if (confirm('Tandai antrian ini sebagai selesai (skip)?')) { 
+    await updateStatus(rowIndex, 'selesai'); 
+  }
+}
+
+async function recall(rowIndex) {
+  await updateStatus(rowIndex, 'menunggu');
+  setTimeout(() => { 
+    updateStatus(rowIndex, 'ditangani'); 
+  }, 500);
+}
+
+async function updateStatus(rowIndex, status) {
+  try {
+    console.log('Updating status:', rowIndex, status);
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      mode: 'cors',
+      cache: 'no-cache',
+      headers: { 
+        'Content-Type': 'text/plain'
+      },
+      body: JSON.stringify({ 
+        action: 'updateStatus', 
+        rowIndex: rowIndex, 
+        status: status 
+      })
+    });
     
-    loadConfig();
-    loadQueue();
-    setInterval(loadQueue, 5000);
+    const result = await response.json();
+    console.log('Update result:', result);
+    
+    if (result.success) {
+      loadQueue();
+    } else {
+      alert('Error: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Error updating status:', error);
+    alert('Terjadi kesalahan: ' + error.message);
+  }
+}
+
+async function saveRunningText() {
+  const text = document.getElementById('runningTextInput').value;
+  if (!text.trim()) { 
+    alert('Running text tidak boleh kosong'); 
+    return; 
+  }
+  
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      mode: 'cors',
+      cache: 'no-cache',
+      headers: { 
+        'Content-Type': 'text/plain'
+      },
+      body: JSON.stringify({ 
+        action: 'setRunningText', 
+        text: text 
+      })
+    });
+    
+    const result = await response.json();
+    if (result.success) {
+      alert('Running text berhasil disimpan!');
+    } else {
+      alert('Error: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Error saving running text:', error);
+    alert('Terjadi kesalahan: ' + error.message);
+  }
+}
+
+async function loadConfig() {
+  try {
+    const response = await fetch(API_URL + '?action=getConfig', {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache'
+    });
+    const result = await response.json();
+    if (result.success && result.data.runningText) { 
+      document.getElementById('runningTextInput').value = result.data.runningText; 
+    }
+  } catch (error) { 
+    console.error('Error loading config:', error); 
+  }
+}
+
+// Load data saat halaman dibuka
+loadConfig();
+loadQueue();
+// Auto-refresh setiap 5 detik
+setInterval(loadQueue, 5000);
   </script>
 </body>
 </html>
