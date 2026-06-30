@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daftar Antrian - Khitan Massal Takengon</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 500px;
+      width: 100%;
+      padding: 40px;
+    }
+    .header { text-align: center; margin-bottom: 30px; }
+    .header img { width: 80px; height: 80px; margin-bottom: 15px; }
+    .header h1 { color: #2563eb; font-size: 24px; margin-bottom: 5px; }
+    .header p { color: #64748b; font-size: 14px; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; color: #334155; font-weight: 600; font-size: 14px; }
+    .form-group input {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+    .form-group input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+    .btn-submit {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3); }
+    .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .result {
+      display: none;
+      text-align: center;
+      padding: 30px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border-radius: 15px;
+      color: white;
+      animation: slideIn 0.5s ease;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    .result h2 { font-size: 20px; margin-bottom: 15px; }
+    .result .nomor-antrian { font-size: 48px; font-weight: bold; margin: 20px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+    .result p { font-size: 14px; margin-bottom: 20px; }
+    .error { display: none; padding: 15px; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 8px; color: #991b1b; margin-bottom: 20px; }
+    .loading { display: none; text-align: center; padding: 20px; }
+    .spinner { border: 4px solid #f3f4f6; border-top: 4px solid #2563eb; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://i.ibb.co.com/G4XGF2CS/20260615-220859.png" alt="Logo">
+      <h1>Khitan Massal Takengon</h1>
+      <p>Silakan isi data untuk mengambil nomor antrian</p>
+    </div>
+    <div class="error" id="error"></div>
+    <form id="formAntrian">
+      <div class="form-group">
+        <label>Nama Lengkap *</label>
+        <input type="text" id="nama" required placeholder="Masukkan nama lengkap">
+      </div>
+      <div class="form-group">
+        <label>Usia (tahun) *</label>
+        <input type="number" id="usia" required min="1" max="100" placeholder="Contoh: 10">
+      </div>
+      <div class="form-group">
+        <label>Alamat Lengkap *</label>
+        <input type="text" id="alamat" required placeholder="Masukkan alamat lengkap">
+
+</div>
+      <div class="form-group">
+        <label>Nama Orang Tua *</label>
+        <input type="text" id="ortu" required placeholder="Masukkan nama orang tua">
+      </div>
+      <button type="submit" class="btn-submit" id="btnSubmit">Ambil Nomor Antrian</button>
+    </form>
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Memproses...</p>
+    </div>
+    <div class="result" id="result">
+      <h2>✅ Pendaftaran Berhasil!</h2>
+      <p>Nomor Antrian Anda:</p>
+      <div class="nomor-antrian" id="nomorAntrian">A-001</div>
+      <p>Silakan tunggu panggilan di monitor</p>
+      <p style="font-size: 12px; margin-top: 20px;">Halaman akan reset otomatis dalam <span id="countdown">10</span> detik</p>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxieAdG034Iqnv0KGl3Ac4x9N6qwTQdN_H2bUOpdQEj4urNH2Zy05l-NiMKqGC-BHtF/exec';
+    const form = document.getElementById('formAntrian');
+    const btnSubmit = document.getElementById('btnSubmit');
+    const errorDiv = document.getElementById('error');
+    const loadingDiv = document.getElementById('loading');
+    const resultDiv = document.getElementById('result');
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorDiv.style.display = 'none';
+      form.style.display = 'none';
+      loadingDiv.style.display = 'block';
+      
+      const data = {
+        action: 'register',
+        nama: document.getElementById('nama').value,
+        usia: document.getElementById('usia').value,
+        alamat: document.getElementById('alamat').value,
+        ortu: document.getElementById('ortu').value
+      };
+      
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        loadingDiv.style.display = 'none';
+        
+        if (result.success) {
+          document.getElementById('nomorAntrian').textContent = result.data.noAntrian;
+          resultDiv.style.display = 'block';
+          playSound();
+          let countdown = 10;
+          const countdownEl = document.getElementById('countdown');
+          const interval = setInterval(() => {
+            countdown--;
+            countdownEl.textContent = countdown;
+            if (countdown <= 0) { clearInterval(interval); resetForm(); }
+          }, 1000);
+        } else {
+          errorDiv.textContent = result.error;
+          errorDiv.style.display = 'block';
+          form.style.display = 'block';
+        }
+      } catch (error) {
+        loadingDiv.style.display = 'none';
+        errorDiv.textContent = 'Terjadi kesalahan. Silakan coba lagi.';
+        errorDiv.style.display = 'block';
+        form.style.display = 'block';
+      }
+    });
+    
+    function resetForm() {
+      form.reset();
+      form.style.display = 'block';
+      resultDiv.style.display = 'none';
+      errorDiv.style.display = 'none';
+    }
+    
+    function playSound() {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.5);
+    }
+  </script>
+</body>
+</html>

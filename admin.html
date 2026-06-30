@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - Khitan Massal Takengon</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f1f5f9; padding: 20px; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    .header { background: white; padding: 20px 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { color: #2563eb; font-size: 24px; }
+    .stats { display: flex; gap: 15px; }
+    .stat-box { padding: 10px 20px; border-radius: 8px; color: white; font-weight: 600; }
+    .stat-menunggu { background: #f59e0b; }
+    .stat-ditangani { background: #3b82f6; }
+    .stat-selesai { background: #10b981; }
+    .controls { background: white; padding: 20px 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .controls h3 { margin-bottom: 15px; color: #334155; }
+    .running-text-input { display: flex; gap: 10px; }
+    .running-text-input input { flex: 1; padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; }
+    .running-text-input button { padding: 10px 25px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    .table-container { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #2563eb; color: white; padding: 15px; text-align: left; font-weight: 600; }
+    td { padding: 12px 15px; border-bottom: 1px solid #e2e8f0; }
+    tr:hover { background: #f8fafc; }
+    .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .status-menunggu { background: #fef3c7; color: #92400e; }
+    .status-ditangani { background: #dbeafe; color: #1e40af; }
+    .status-selesai { background: #d1fae5; color: #065f46; }
+    .btn-action { padding: 6px 12px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-right: 5px; transition: all 0.2s; }
+    .btn-panggil { background: #3b82f6; color: white; }
+    .btn-panggil:hover { background: #2563eb; }
+    .btn-selesai { background: #10b981; color: white; }
+    .btn-selesai:hover { background: #059669; }
+    .btn-skip { background: #ef4444; color: white; }
+    .btn-skip:hover { background: #dc2626; }
+    .btn-recall { background: #f59e0b; color: white; }
+    .btn-recall:hover { background: #d97706; }
+    .no-data { text-align: center; padding: 40px; color: #94a3b8; }
+    .loading { text-align: center; padding: 40px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🏥 Admin Panel - Khitan Massal Takengon</h1>
+      <div class="stats">
+        <div class="stat-box stat-menunggu">Menunggu: <span id="countMenunggu">0</span></div>
+        <div class="stat-box stat-ditangani">Ditangani: <span id="countDitangani">0</span></div>
+        <div class="stat-box stat-selesai">Selesai: <span id="countSelesai">0</span></div>
+      </div>
+    </div>
+    <div class="controls">
+      <h3>⚙️ Pengaturan Running Text</h3>
+      <div class="running-text-input">
+        <input type="text" id="runningTextInput" placeholder="Masukkan teks running text...">
+        <button onclick="saveRunningText()">💾 Simpan</button>
+      </div>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>No. Antrian</th>
+            <th>Nama</th>
+            <th>Usia</th>
+            <th>Alamat</th>
+            <th>Orang Tua</th>
+            <th>Status</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="7" class="loading">Memuat data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxieAdG034Iqnv0KGl3Ac4x9N6qwTQdN_H2bUOpdQEj4urNH2Zy05l-NiMKqGC-BHtF/exec';
+    let queueData = [];
+    
+    async function loadQueue() {
+      try {
+        const response = await fetch(API_URL + '?action=getQueue');
+        const result = await response.json();
+        if (result.success) {
+          queueData = result.data;
+          renderTable();
+          updateStats();
+        }
+      } catch (error) { console.error('Error loading queue:', error); }
+    }
+    
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      if (queueData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="no-data">Belum ada antrian hari ini</td></tr>';
+        return;
+      }
+      tbody.innerHTML = queueData.map(item => {
+        let actions = '';
+        if (item.status === 'menunggu') {
+          actions = <button class="btn-action btn-panggil" onclick="panggil(${item.rowIndex})">▶️ Panggil</button><button class="btn-action btn-skip" onclick="skip(${item.rowIndex})">⏭️ Skip</button>;
+        } else if (item.status === 'ditangani') {
+          actions = <button class="btn-action btn-selesai" onclick="selesai(${item.rowIndex})">✅ Selesai</button><button class="btn-action btn-recall" onclick="recall(${item.rowIndex})">🔁 Panggil Ulang</button>;
+        } else if (item.status === 'selesai') {
+          actions = <button class="btn-action btn-recall" onclick="recall(${item.rowIndex})">🔁 Panggil Ulang</button>;
+        }
+        return <tr><td><strong>${item.noAntrian}</strong></td><td>${item.nama}</td><td>${item.usia}</td><td>${item.alamat}</td><td>${item.ortu}</td><td><span class="status-badge status-${item.status}">${item.status.toUpperCase()}</span></td><td>${actions}</td></tr>;
+      }).join('');
+    }
+    
+    function updateStats() {
+      const menunggu = queueData.filter(i => i.status === 'menunggu').length;
+      const ditangani = queueData.filter(i => i.status === 'ditangani').length;
+      const selesai = queueData.filter(i => i.status === 'selesai').length;
+      document.getElementById('countMenunggu').textContent = menunggu;
+      document.getElementById('countDitangani').textContent = ditangani;
+      document.getElementById('countSelesai').textContent = selesai;
+    }
+    
+    async function panggil(rowIndex) {
+      const ditangani = queueData.filter(i => i.status === 'ditangani').length;
+      if (ditangani >= 3) {
+        alert('Maksimal 3 antrian yang sedang ditangani. Selesaikan salah satu terlebih dahulu.');
+        return;
+      }
+      await updateStatus(rowIndex, 'ditangani');
+    }
+    
+    async function selesai(rowIndex) { await updateStatus(rowIndex, 'selesai'); }
+    
+    async function skip(rowIndex) {
+      if (confirm('Tandai antrian ini sebagai selesai (skip)?')) { await updateStatus(rowIndex, 'selesai'); }
+    }
+    
+    async function recall(rowIndex) {
+      await updateStatus(rowIndex, 'menunggu');
+      setTimeout(() => { updateStatus(rowIndex, 'ditangani'); }, 500);
+    }
+    
+    async function updateStatus(rowIndex, status) {
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'updateStatus', rowIndex: rowIndex, status: status })
+        });
+        loadQueue();
+      } catch (error) {
+        console.error('Error updating status:', error);
+        alert('Terjadi kesalahan. Silakan coba lagi.');
+      }
+    }
+    
+    async function saveRunningText() {
+      const text = document.getElementById('runningTextInput').value;
+      if (!text.trim()) { alert('Running text tidak boleh kosong'); return; }
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain' },
+
+body: JSON.stringify({ action: 'setRunningText', text: text })
+        });
+        alert('Running text berhasil disimpan!');
+      } catch (error) {
+        console.error('Error saving running text:', error);
+        alert('Terjadi kesalahan. Silakan coba lagi.');
+      }
+    }
+    
+    async function loadConfig() {
+      try {
+        const response = await fetch(API_URL + '?action=getConfig');
+        const result = await response.json();
+        if (result.success) { document.getElementById('runningTextInput').value = result.data.runningText || ''; }
+      } catch (error) { console.error('Error loading config:', error); }
+    }
+    
+    loadConfig();
+    loadQueue();
+    setInterval(loadQueue, 5000);
+  </script>
+</body>
+</html>

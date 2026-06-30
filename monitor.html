@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitor Antrian - Khitan Massal Takengon</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; font-family: 'Poppins', sans-serif; background: #0f172a; color: white; }
+    .monitor { display: flex; flex-direction: column; height: 100vh; }
+    .header { background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%); padding: 15px 30px; display: flex; align-items: center; gap: 20px; border-bottom: 3px solid #3b82f6; }
+    .header img { width: 60px; height: 60px; border-radius: 50%; border: 3px solid white; background: white; object-fit: contain; }
+    .header-title { flex: 1; }
+    .header-title h1 { font-size: 28px; font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+    .header-title p { font-size: 14px; opacity: 0.9; }
+    .header-clock { text-align: right; }
+    .header-clock .time { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .header-clock .date { font-size: 13px; opacity: 0.9; }
+    .running-text-container { background: #1e293b; padding: 8px 0; overflow: hidden; border-bottom: 2px solid #334155; }
+    .running-text { white-space: nowrap; animation: scroll-left 30s linear infinite; font-size: 16px; font-weight: 500; color: #fbbf24; }
+    @keyframes scroll-left { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
+    .main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px; overflow: hidden; }
+    .left-panel { display: flex; flex-direction: column; gap: 15px; overflow: hidden; }
+    .section { background: #1e293b; border-radius: 15px; padding: 20px; border: 2px solid #334155; }
+    .section-title { font-size: 16px; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+    .section-title .icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .ditangani .section-title .icon { background: #3b82f6; }
+    .bersiap .section-title .icon { background: #f59e0b; }
+    .queue-card { background: #0f172a; border-radius: 10px; padding: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 15px; border-left: 4px solid #3b82f6; transition: all 0.3s; }
+    .queue-card.highlight { animation: pulse-card 1s ease-in-out 3; border-left-color: #10b981; background: #064e3b; }
+    @keyframes pulse-card { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); } }
+    .queue-number { font-size: 28px; font-weight: 700; color: #3b82f6; min-width: 100px; }
+    .queue-card.highlight .queue-number { color: #10b981; }
+    .queue-name { font-size: 16px; font-weight: 500; }
+    .queue-card.highlight .queue-number::after { content: ' 🔔'; animation: ring 0.5s ease-in-out 3; }
+    @keyframes ring { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(15deg); } 75% { transform: rotate(-15deg); } }
+    .bersiap .queue-card { border-left-color: #f59e0b; }
+    .bersiap .queue-number { color: #f59e0b; }
+    .qr-section { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 15px; padding: 15px; text-align: center; border: 2px solid #334155; }
+    .qr-section h3 { font-size: 14px; margin-bottom: 10px; color: #94a3b8; }
+    .qr-code { background: white; padding: 10px; border-radius: 10px; display: inline-block; }
+    .qr-code img { width: 100px; height: 100px; display: block; }
+.right-panel { background: #1e293b; border-radius: 15px; padding: 20px; border: 2px solid #334155; display: flex; flex-direction: column; overflow: hidden; }
+    .right-panel .section-title { color: #94a3b8; margin-bottom: 15px; }
+    .waiting-list { flex: 1; overflow-y: auto; padding-right: 10px; }
+    .waiting-list::-webkit-scrollbar { width: 6px; }
+    .waiting-list::-webkit-scrollbar-track { background: #0f172a; border-radius: 3px; }
+    .waiting-list::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 3px; }
+    .waiting-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .waiting-item { background: #0f172a; border-radius: 10px; padding: 12px; text-align: center; border: 2px solid #334155; transition: all 0.3s; }
+    .waiting-item .no-antrian { font-size: 22px; font-weight: 700; color: #fbbf24; margin-bottom: 5px; }
+    .waiting-item .nama { font-size: 12px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .empty-state { text-align: center; padding: 40px; color: #64748b; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 15px; }
+    .footer { background: #1e293b; padding: 10px 30px; text-align: center; font-size: 12px; color: #64748b; border-top: 2px solid #334155; }
+  </style>
+</head>
+<body>
+  <div class="monitor">
+    <div class="header">
+      <img src="https://i.ibb.co.com/G4XGF2CS/20260615-220859.png" alt="Logo">
+      <div class="header-title">
+        <h1>KHITAN MASSAL TAKENGON</h1>
+        <p>Sistem Antrian Digital</p>
+      </div>
+      <div class="header-clock">
+        <div class="time" id="clock">00:00:00</div>
+        <div class="date" id="date">Senin, 1 Januari 2026</div>
+      </div>
+    </div>
+    <div class="running-text-container">
+      <div class="running-text" id="runningText">Selamat datang di Khitan Massal Takengon • Mohon menunggu dengan tertib • Terima kasih</div>
+    </div>
+    <div class="main">
+      <div class="left-panel">
+        <div class="section ditangani">
+          <div class="section-title"><div class="icon">🟢</div>Sedang Ditangani</div>
+          <div id="ditanganiList"><div class="empty-state"><div class="icon">⏳</div><p>Belum ada yang ditangani</p></div></div>
+        </div>
+        <div class="section bersiap">
+          <div class="section-title"><div class="icon">🔔</div>Bersiap-siap</div>
+          <div id="bersiapList"><div class="empty-state"><div class="icon">⏳</div><p>Belum ada yang bersiap</p></div></div>
+        </div>
+        <div class="qr-section">
+          <h3>📱 SCAN UNTUK DAFTAR ANTRIAN</h3>
+          <div class="qr-code">
+            <img id="qrImage" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=FORM_URL_HERE" alt="QR Code">
+          </div>
+        </div>
+      </div>
+      <div class="right-panel">
+        <div class="section-title"><div class="icon" style="background: #fbbf24;">📋</div>Daftar Antrian Menunggu</div>
+        <div class="waiting-list">
+          <div class="waiting-grid" id="waitingGrid">
+            <div class="empty-state" style="grid-column: 1/-1;"><div class="icon">📭</div><p>Belum ada antrian</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">© 2026 Khitan Massal Takengon • Sistem Antrian Digital</div>
+  </div>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxieAdG034Iqnv0KGl3Ac4x9N6qwTQdN_H2bUOpdQEj4urNH2Zy05l-NiMKqGC-BHtF/exec';
+    let previousDitangani = [];
+    
+    function updateClock() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('clock').textContent = ${hours}:${minutes}:${seconds};
+      const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+      const dayName = days[now.getDay()];
+      const date = now.getDate();
+      const monthName = months[now.getMonth()];
+      const year = now.getFullYear();
+      document.getElementById('date').textContent = ${dayName}, ${date} ${monthName} ${year};
+    }
+    
+    setInterval(updateClock, 1000);
+    updateClock();
+    
+    async function loadQueue() {
+      try {
+        const response = await fetch(API_URL + '?action=getQueue');
+        const result = await response.json();
+        if (result.success) {
+          const data = result.data;
+          const menunggu = data.filter(i => i.status === 'menunggu');
+          const ditangani = data.filter(i => i.status === 'ditangani');
+          const newCalls = checkNewCalls(ditangani);
+          renderDitangani(ditangani, newCalls);
+          renderBersiap(menunggu);
+          renderWaiting(menunggu);
+          if (newCalls.length > 0) { speakQueueNumbers(newCalls); }
+        }
+      } catch (error) { console.error('Error loading queue:', error); }
+    }
+    
+    function checkNewCalls(ditangani) {
+      const currentIds = ditangani.map(i => i.rowIndex);
+      const previousIds = previousDitangani.map(i => i.rowIndex);
+      const newCalls = ditangani.filter(i => !previousIds.includes(i.rowIndex));
+      previousDitangani = [...ditangani];
+      return newCalls;
+    }
+    
+    function renderDitangani(list, newCalls) {
+      const container = document.getElementById('ditanganiList');
+      const newCallIds = newCalls.map(i => i.rowIndex);
+      if (list.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Belum ada yang ditangani</p></div>';
+        return;
+      }
+      container.innerHTML = list.slice(0, 3).map(item => {
+        const isHighlight = newCallIds.includes(item.rowIndex);
+        return <div class="queue-card ${isHighlight ? 'highlight' : ''}"><div class="queue-number">${item.noAntrian}</div><div class="queue-name">${item.nama}</div></div>;
+      }).join('');
+    }
+    
+    function renderBersiap(menunggu) {
+      const container = document.getElementById('bersiapList');
+      if (menunggu.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Belum ada yang bersiap</p></div>';
+        return;
+      }
+      container.innerHTML = menunggu.slice(0, 3).map(item => <div class="queue-card"><div class="queue-number">${item.noAntrian}</div><div class="queue-name">${item.nama}</div></div>).join('');
+    }
+    
+    function renderWaiting(menunggu) {
+      const container = document.getElementById('waitingGrid');
+      if (menunggu.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><div class="icon">📭</div><p>Belum ada antrian</p></div>';
+        return;
+      }
+      container.innerHTML = menunggu.map(item => <div class="waiting-item"><div class="no-antrian">${item.noAntrian}</div><div class="nama">${item.nama}</div></div>).join('');
+    }
+    
+    function speakQueueNumbers(newCalls) {
+      if (!('speechSynthesis' in window)) { console.log('Speech synthesis not supported'); return; }
+      playBell();
+      setTimeout(() => {
+        newCalls.forEach((item, index) => {
+          setTimeout(() => {
+            const text = Nomor antrian ${item.noAntrian.replace('-', ' ')}, atas nama ${item.nama};
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'id-ID';
+            utterance.rate = 0.9;
+            utterance.pitch = 1;
+            window.speechSynthesis.speak(utterance);
+          }, index * 4000);
+        });
+      }, 1000);
+    }
+
+function playBell() {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.3, 0.6].forEach(delay => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.frequency.value = 1200;
+        oscillator.type = 'sine';
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + delay);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + delay + 0.3);
+        oscillator.start(audioContext.currentTime + delay);
+        oscillator.stop(audioContext.currentTime + delay + 0.3);
+      });
+    }
+    
+    async function loadConfig() {
+      try {
+        const response = await fetch(API_URL + '?action=getConfig');
+        const result = await response.json();
+        if (result.success && result.data.runningText) { document.getElementById('runningText').textContent = result.data.runningText; }
+      } catch (error) { console.error('Error loading config:', error); }
+    }
+    
+    loadConfig();
+    loadQueue();
+    setInterval(loadQueue, 5000);
+    setInterval(loadConfig, 30000);
+  </script>
+</body>
+</html>
