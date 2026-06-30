@@ -156,8 +156,8 @@ function updateStats() {
 
 async function panggil(rowIndex) {
   const ditangani = queueData.filter(i => i.status === 'ditangani').length;
-  if (ditangani >= 3) {
-    alert('Maksimal 3 antrian yang sedang ditangani. Selesaikan salah satu terlebih dahulu.');
+  if (ditangani >= 10) {
+    alert('Maksimal 10 antrian yang sedang ditangani. Selesaikan salah satu terlebih dahulu.');
     return;
   }
   await updateStatus(rowIndex, 'ditangani');
