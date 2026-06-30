@@ -102,7 +102,7 @@
   </div>
 
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxieAdG034Iqnv0KGl3Ac4x9N6qwTQdN_H2bUOpdQEj4urNH2Zy05l-NiMKqGC-BHtF/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxffKtitMM_v478KF4dEk6tCO36IfhUT_OWdl3V8W8GXDN3yURXXinZAxZhENniZ8X0/exec';
 let previousDitangani = [];
 
 function updateClock() {
@@ -178,7 +178,7 @@ function renderDitangani(list, newCalls) {
     return;
   }
   
-  container.innerHTML = list.slice(0, 3).map(item => {
+  container.innerHTML = list.slice(0, 10).map(item => {
     const isHighlight = newCallIds.includes(item.rowIndex);
     return `<div class="queue-card ${isHighlight ? 'highlight' : ''}">
       <div class="queue-number">${item.noAntrian}</div>
@@ -195,7 +195,7 @@ function renderBersiap(menunggu) {
     return;
   }
   
-  container.innerHTML = menunggu.slice(0, 3).map(item => 
+  container.innerHTML = menunggu.slice(0, 5).map(item => 
     `<div class="queue-card">
       <div class="queue-number">${item.noAntrian}</div>
       <div class="queue-name">${item.nama}</div>
