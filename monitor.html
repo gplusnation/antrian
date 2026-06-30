@@ -103,128 +103,181 @@
 
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbxieAdG034Iqnv0KGl3Ac4x9N6qwTQdN_H2bUOpdQEj4urNH2Zy05l-NiMKqGC-BHtF/exec';
-    let previousDitangani = [];
-    
-    function updateClock() {
-      const now = new Date();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      document.getElementById('clock').textContent = ${hours}:${minutes}:${seconds};
-      const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+let previousDitangani = [];
 
-const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-      const dayName = days[now.getDay()];
-      const date = now.getDate();
-      const monthName = months[now.getMonth()];
-      const year = now.getFullYear();
-      document.getElementById('date').textContent = ${dayName}, ${date} ${monthName} ${year};
-    }
+function updateClock() {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+  
+  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const dayName = days[now.getDay()];
+  const date = now.getDate();
+  const monthName = months[now.getMonth()];
+  const year = now.getFullYear();
+  document.getElementById('date').textContent = `${dayName}, ${date} ${monthName} ${year}`;
+}
+
+setInterval(updateClock, 1000);
+updateClock();
+
+async function loadQueue() {
+  try {
+    console.log('Monitor: Loading queue...');
+    const response = await fetch(API_URL + '?action=getQueue', {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache'
+    });
     
-    setInterval(updateClock, 1000);
-    updateClock();
+    const text = await response.text();
+    console.log('Monitor: Response:', text);
     
-    async function loadQueue() {
-      try {
-        const response = await fetch(API_URL + '?action=getQueue');
-        const result = await response.json();
-        if (result.success) {
-          const data = result.data;
-          const menunggu = data.filter(i => i.status === 'menunggu');
-          const ditangani = data.filter(i => i.status === 'ditangani');
-          const newCalls = checkNewCalls(ditangani);
-          renderDitangani(ditangani, newCalls);
-          renderBersiap(menunggu);
-          renderWaiting(menunggu);
-          if (newCalls.length > 0) { speakQueueNumbers(newCalls); }
-        }
-      } catch (error) { console.error('Error loading queue:', error); }
-    }
+    const result = JSON.parse(text);
     
-    function checkNewCalls(ditangani) {
-      const currentIds = ditangani.map(i => i.rowIndex);
-      const previousIds = previousDitangani.map(i => i.rowIndex);
-      const newCalls = ditangani.filter(i => !previousIds.includes(i.rowIndex));
-      previousDitangani = [...ditangani];
-      return newCalls;
-    }
-    
-    function renderDitangani(list, newCalls) {
-      const container = document.getElementById('ditanganiList');
-      const newCallIds = newCalls.map(i => i.rowIndex);
-      if (list.length === 0) {
-        container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Belum ada yang ditangani</p></div>';
-        return;
+    if (result.success) {
+      const data = result.data || [];
+      console.log('Monitor: Data loaded:', data.length, 'items');
+      
+      const menunggu = data.filter(i => i.status === 'menunggu');
+      const ditangani = data.filter(i => i.status === 'ditangani');
+      
+      const newCalls = checkNewCalls(ditangani);
+      
+      renderDitangani(ditangani, newCalls);
+      renderBersiap(menunggu);
+      renderWaiting(menunggu);
+      
+      if (newCalls.length > 0) { 
+        console.log('Monitor: New calls detected:', newCalls);
+        speakQueueNumbers(newCalls); 
       }
-      container.innerHTML = list.slice(0, 3).map(item => {
-        const isHighlight = newCallIds.includes(item.rowIndex);
-        return <div class="queue-card ${isHighlight ? 'highlight' : ''}"><div class="queue-number">${item.noAntrian}</div><div class="queue-name">${item.nama}</div></div>;
-      }).join('');
     }
-    
-    function renderBersiap(menunggu) {
-      const container = document.getElementById('bersiapList');
-      if (menunggu.length === 0) {
-        container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Belum ada yang bersiap</p></div>';
-        return;
-      }
-      container.innerHTML = menunggu.slice(0, 3).map(item => <div class="queue-card"><div class="queue-number">${item.noAntrian}</div><div class="queue-name">${item.nama}</div></div>).join('');
-    }
-    
-    function renderWaiting(menunggu) {
-      const container = document.getElementById('waitingGrid');
-      if (menunggu.length === 0) {
-        container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><div class="icon">📭</div><p>Belum ada antrian</p></div>';
-        return;
-      }
-      container.innerHTML = menunggu.map(item => <div class="waiting-item"><div class="no-antrian">${item.noAntrian}</div><div class="nama">${item.nama}</div></div>).join('');
-    }
-    
-    function speakQueueNumbers(newCalls) {
-      if (!('speechSynthesis' in window)) { console.log('Speech synthesis not supported'); return; }
-      playBell();
+  } catch (error) { 
+    console.error('Monitor: Error loading queue:', error); 
+  }
+}
+
+function checkNewCalls(ditangani) {
+  const currentIds = ditangani.map(i => i.rowIndex);
+  const previousIds = previousDitangani.map(i => i.rowIndex);
+  const newCalls = ditangani.filter(i => !previousIds.includes(i.rowIndex));
+  previousDitangani = [...ditangani];
+  return newCalls;
+}
+
+function renderDitangani(list, newCalls) {
+  const container = document.getElementById('ditanganiList');
+  const newCallIds = newCalls.map(i => i.rowIndex);
+  
+  if (list.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Belum ada yang ditangani</p></div>';
+    return;
+  }
+  
+  container.innerHTML = list.slice(0, 3).map(item => {
+    const isHighlight = newCallIds.includes(item.rowIndex);
+    return `<div class="queue-card ${isHighlight ? 'highlight' : ''}">
+      <div class="queue-number">${item.noAntrian}</div>
+      <div class="queue-name">${item.nama}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderBersiap(menunggu) {
+  const container = document.getElementById('bersiapList');
+  
+  if (menunggu.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Belum ada yang bersiap</p></div>';
+    return;
+  }
+  
+  container.innerHTML = menunggu.slice(0, 3).map(item => 
+    `<div class="queue-card">
+      <div class="queue-number">${item.noAntrian}</div>
+      <div class="queue-name">${item.nama}</div>
+    </div>`
+  ).join('');
+}
+
+function renderWaiting(menunggu) {
+  const container = document.getElementById('waitingGrid');
+  
+  if (menunggu.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><div class="icon">📭</div><p>Belum ada antrian</p></div>';
+    return;
+  }
+  
+  container.innerHTML = menunggu.map(item => 
+    `<div class="waiting-item">
+      <div class="no-antrian">${item.noAntrian}</div>
+      <div class="nama">${item.nama}</div>
+    </div>`
+  ).join('');
+}
+
+function speakQueueNumbers(newCalls) {
+  if (!('speechSynthesis' in window)) { 
+    console.log('Speech synthesis not supported'); 
+    return; 
+  }
+  
+  playBell();
+  
+  setTimeout(() => {
+    newCalls.forEach((item, index) => {
       setTimeout(() => {
-        newCalls.forEach((item, index) => {
-          setTimeout(() => {
-            const text = Nomor antrian ${item.noAntrian.replace('-', ' ')}, atas nama ${item.nama};
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'id-ID';
-            utterance.rate = 0.9;
-            utterance.pitch = 1;
-            window.speechSynthesis.speak(utterance);
-          }, index * 4000);
-        });
-      }, 1000);
-    }
+        const text = `Nomor antrian ${item.noAntrian.replace('-', ' ')}, atas nama ${item.nama}`;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'id-ID';
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        window.speechSynthesis.speak(utterance);
+      }, index * 4000);
+    });
+  }, 1000);
+}
 
 function playBell() {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      [0, 0.3, 0.6].forEach(delay => {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        oscillator.frequency.value = 1200;
-        oscillator.type = 'sine';
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + delay);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + delay + 0.3);
-        oscillator.start(audioContext.currentTime + delay);
-        oscillator.stop(audioContext.currentTime + delay + 0.3);
-      });
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  
+  [0, 0.3, 0.6].forEach(delay => {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.frequency.value = 1200;
+    oscillator.type = 'sine';
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + delay);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + delay + 0.3);
+    oscillator.start(audioContext.currentTime + delay);
+    oscillator.stop(audioContext.currentTime + delay + 0.3);
+  });
+}
+
+async function loadConfig() {
+  try {
+    const response = await fetch(API_URL + '?action=getConfig', {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache'
+    });
+    const result = await response.json();
+    if (result.success && result.data.runningText) { 
+      document.getElementById('runningText').textContent = result.data.runningText; 
     }
-    
-    async function loadConfig() {
-      try {
-        const response = await fetch(API_URL + '?action=getConfig');
-        const result = await response.json();
-        if (result.success && result.data.runningText) { document.getElementById('runningText').textContent = result.data.runningText; }
-      } catch (error) { console.error('Error loading config:', error); }
-    }
-    
-    loadConfig();
-    loadQueue();
-    setInterval(loadQueue, 5000);
-    setInterval(loadConfig, 30000);
+  } catch (error) { 
+    console.error('Error loading config:', error); 
+  }
+}
+
+loadConfig();
+loadQueue();
+setInterval(loadQueue, 5000);
+setInterval(loadConfig, 30000);
   </script>
 </body>
 </html>
