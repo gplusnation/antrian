@@ -85,7 +85,7 @@
         <div class="qr-section">
           <h3>📱 SCAN UNTUK DAFTAR ANTRIAN</h3>
           <div class="qr-code">
-            <img id="qrImage" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://gplusnation.github.io/antrian" alt="QR Code">
+            <img id="qrImage" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=FORM_URL_HERE" alt="QR Code">
           </div>
         </div>
       </div>
@@ -155,7 +155,7 @@
         container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Belum ada yang ditangani</p></div>';
         return;
       }
-      container.innerHTML = list.slice(0, 3).map(item => {
+      container.innerHTML = list.slice(0, 10).map(item => {
         const isHighlight = newCallIds.includes(item.rowIndex);
         return `<div class="queue-card ${isHighlight ? 'highlight' : ''}"><div class="queue-number">${item.noAntrian}</div><div class="queue-name">${item.nama}</div></div>`;
       }).join('');
@@ -167,7 +167,7 @@
         container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Belum ada yang bersiap</p></div>';
         return;
       }
-      container.innerHTML = menunggu.slice(0, 3).map(item => `<div class="queue-card"><div class="queue-number">${item.noAntrian}</div><div class="queue-name">${item.nama}</div></div>`).join('');
+      container.innerHTML = menunggu.slice(0, 7).map(item => `<div class="queue-card"><div class="queue-number">${item.noAntrian}</div><div class="queue-name">${item.nama}</div></div>`).join('');
     }
     
     function renderWaiting(menunggu) {
